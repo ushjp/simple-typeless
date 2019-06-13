@@ -5,8 +5,10 @@ import { createActions, createEpic, createReducer, initialize, useActions, useMa
 export const MODULE = 'counter';
 
 export const Msg = createActions(MODULE, {
+  $mounted: null,
   increment: null,
   decrement: null,
+  keyDown: (event: KeyboardEvent) => ({ payload: { event }}),
 });
 
 export interface CounterState {
@@ -19,9 +21,24 @@ declare module 'typeless/types' {
   }
 }
 
-const epic = createEpic(MODULE);
+const epic = createEpic(MODULE)
+  .on(Msg.keyDown, ({ event }, { getState }) => {
+    console.log(event.key);
+    if (event.key === 'w') {
+      return Msg.decrement();
+    } else if (event.key === 's') {
+      return Msg.increment();
+    }
+    return [];
+  });
 
 const reducer = createReducer({ count: 0 })
+  .on(Msg.$mounted, () => {
+    // FIXME: 以下のような警告が出て、incrementやdecrement時にエラーになる
+    // Warning: Do not call Hooks inside useEffect(...), useMemo(...), or other built-in Hooks. You can only call Hooks at the top level of your React function.
+    const { keyDown } = useActions(Msg);
+    document.addEventListener('keydown', e => keyDown(e));
+  })
   .on(Msg.increment, state => {
     state.count++;
   })
@@ -34,6 +51,7 @@ function Main() {
     epic,
     reducer,
     reducerPath: ['count'],
+    actions: Msg,
   });
 
   const { increment, decrement } = useActions(Msg);
